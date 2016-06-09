@@ -1,30 +1,36 @@
 import sys
-import unittest
-from pyftdi.ftdi import Ftdi
-from six import print_
+import time
+from pylibftdi import Device
 
-
-class FtdiTestCase(unittest.TestCase):
-    """FTDI driver test case"""
-
-    def test_multiple_interface(self):
-        # the following calls used to create issues (several interfaces from
-        # the same device). The test expects an FTDI 2232H here
-        ftdi1 = Ftdi()
-        ftdi1.open(vendor=0x0403, product=0x6014, interface=0)
-        import time
-        for x in range(5):
-            print_("If#1: ", hex(ftdi1.poll_modem_status()))
-            time.sleep(0.500)
-        ftdi1.close()
-
-
-def suite():
-    suite_ = unittest.TestSuite()
-    suite_.addTest(unittest.makeSuite(FtdiTestCase, 'test'))
-    return suite_
-
-if __name__ == '__main__':
-    import doctest
-    doctest.testmod(sys.modules[__name__])
-    unittest.main(defaultTest='suite')
+count = 1000
+with Device() as dev:
+    dev.baudrate = 230400
+    i = 0
+    start = time.time()
+    while(1==1):
+        
+        rec = bytearray(dev.read(3))
+        if len(rec) >= 3:
+            if rec[0] != 5 or rec[1] == 5:
+                rec = bytearray(dev.read(2))
+                while(len(rec) < 1):
+                      rec = bytearray(dev.read(1))
+                while(rec[0] != 5):
+                    rec = bytearray(dev.read(1))
+                    while(len(rec) < 1):
+                      rec = bytearray(dev.read(1))
+                if len(rec) < 3:
+                    rec[1:2] = dev.read(2)
+            if len(rec) >= 3 and rec[1] != 5:
+             i+=1
+             if i>= count:
+                angle = rec[1] + rec[2] * 256
+                if angle > 32767:
+                    angle -= 65536
+                degre = angle*360/20000
+                end = time.time()
+                print(str(degre) + " | " +str(count/(end-start)))
+                #print(str(degre) + " | " +str(rec[0]) + " : " + str(rec[1]) + " : " +str(rec[2]))
+                i=0
+                #print(str(count/(end-start)))
+                start = time.time()
