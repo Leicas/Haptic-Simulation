@@ -5,6 +5,8 @@ import pyqtgraph as pg
 import pyqtgraph.widgets.RemoteGraphicsView
 from pylibftdi import Device
 import numpy as np
+import serial
+import re
 app = pg.mkQApp()
 resang = 100
 
@@ -47,7 +49,8 @@ layout.show()
 
 ## Create a PlotItem in the remote process that will be displayed locally
 lastUpdate = pg.ptime.time()
-data=[0]*1000
+data=[0]*100
+datat2=[0]*100
 anglemax = 45
 resang = 100
 force=[0]*2*anglemax*resang
@@ -69,44 +72,30 @@ itera = 0
 oldforce = 0
 buffdata = [0]*100
 iterfiltre = 0
-dev = Device()
-dev.baudrate = 230400
-count = 10
+#dev = Device()
+#dev.baudrate = 230400
+pince = serial.Serial('COM8', 115200, timeout=None)
+count = 1
 i = 0
 def update():
-    global dev, i, count, label, avgFps, lastUpdate, plt, data, force, anglemax, resang
-    rec = bytearray(dev.read(6))
-    if len(rec) >= 6:
-        if rec[0] != 5 or rec[3] != 5:
-            rec = bytearray(dev.read(2))
-            while(len(rec) < 1):
-                  rec = bytearray(dev.read(1))
-            while(rec[0] != 5):
-                rec = bytearray(dev.read(1))
-                while(len(rec) < 1):
-                  rec = bytearray(dev.read(1))
-            if len(rec) < 6:
-                rec[1:5] = dev.read(5)
-        if len(rec) == 6 and rec[3] == 5:
-         i+=1
-         angle = rec[1] + rec[2] * 256
-         if angle > 32767:
-            angle -= 65536
-         degre = angle*360/20000
+    global dev, i, count, label, avgFps, lastUpdate, plt, data, force, anglemax, resang, pince, datat2
+    data1 = pince.readline()
+    pince.flush()
+    data2 = data1.decode('ascii','backslashreplace')
+    #print(data1)
+    listedata = re.findall("([0-9]+(?:\.[0-9]+)?)(?:\|)([0-9]+(?:\.[0-9]+)?)",data2)
+    #print(listedata[0][0])
+    #print(listedata[1])
+    if len(listedata) >= 1:
+         i += 1
          data[:-1] = data[1:]
-         data[-1] = degre
+         data[-1] = float(listedata[0][0])
+         datat2[:-1] = datat2[1:]
+         datat2[-1] = float(listedata[0][1])
          #print(str(degre))
-         indexf = max(min(int((anglemax+degre)*resang),anglemax*resang*2-1),0)
-         forcenow=force[indexf]
-         forcenowint = 32767*(1+forcenow/130)
-         bufenvoi = bytearray(4)
-         bufenvoi[0] = int(forcenowint) & int('0b00111111',2)
-         bufenvoi[1] = ((int(forcenowint) >> 6) & int('0b00111111',2)) | int('0b01000000',2)
-         bufenvoi[2] = ((int(forcenowint) >> 12) & int('0b00111111',2)) | int('0b10000000',2)
-         bufenvoi[3] = int('0b11000000',2)
-         dev.write(bufenvoi)
          if i>= count:
             lplt.plot(data, clear=True)
+            lplt.plot(datat2, pen=(0,255,0))
             #print(str(degre))
             #print(str(degre) + " | " +str(rec[0]) + " : " + str(rec[1]) + " : " +str(rec[2]))
             i=0
@@ -115,8 +104,8 @@ def update():
             fps = count / (now - lastUpdate)
             lastUpdate = now
             label.setText("Communication %0.2f Hz" % fps)
-            fplt.plot(range(-anglemax*resang,anglemax*resang),force, clear=True)
-            fplt.plot([degre*resang],[forcenow],pen=(0,0,255),symbolBrush=(255,0,0),symbolPen='r')
+            #fplt.plot(range(-anglemax*resang,anglemax*resang),force, clear=True)
+            #fplt.plot([degre*resang],[forcenow],pen=(0,0,255),symbolBrush=(255,0,0),symbolPen='r')
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
 timer.start(0)
