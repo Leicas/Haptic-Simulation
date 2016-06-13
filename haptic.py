@@ -1,6 +1,6 @@
 import sys
 import time
-from threading import Thread
+from threading import Thread, Lock
 from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
 import pyqtgraph.widgets.RemoteGraphicsView
@@ -8,11 +8,49 @@ from pylibftdi import Device
 from FifoBuffer import FifoBuffer
 import numpy as np
 
+verrou = Lock()
+
 def lecture(threadname):
-    global dev,fifo
+    global dev,fifo, taille
     while True:
         fifo.insert(dev.read(1))
-    
+        taille = len(fifo)
+
+def compute(threadname):
+    global fifo, i, fps, count, degre, label, avgFps, lastUpdate, plt, data, force, anglemax, resang, forcenow, taille
+    while True:
+        if(taille>=3):
+            rec = bytearray(fifo.extract(3,True))
+            taille = taille - 3
+            if rec[0] != 5:
+                while(rec[0] != 5):
+                    rec = bytearray(fifo.extract(1,True))
+                    taille = taille - 1
+                rec[1:2] = bytearray(fifo.extract(2,True))
+                taille = taille - 2
+            if rec[0] == 5:
+             i+=1
+             angle = rec[1] + rec[2] * 256
+             if angle > 32767:
+                angle -= 65536
+             degre = angle*360/20000
+             data[:-1] = data[1:]
+             data[-1] = degre
+             indexf = max(min(int((anglemax+degre)*resang),anglemax*resang*2-1),0)
+             forcenow=force[indexf]
+             forcenow = max(min(forcenow,130),-130)
+             forcenowint = 32767*(1+forcenow/130)
+             bufenvoi = bytearray(4)
+             bufenvoi[0] = int(forcenowint) & int('0b00111111',2)
+             bufenvoi[1] = ((int(forcenowint) >> 6) & int('0b00111111',2)) | int('0b01000000',2)
+             bufenvoi[2] = ((int(forcenowint) >> 12) & int('0b00111111',2)) | int('0b10000000',2)
+             bufenvoi[3] = int('0b11000000',2)
+             if i>= count:
+                 i= 0
+                 now = pg.ptime.time()
+                 fps = count / (now - lastUpdate)
+                 lastUpdate = now
+             dev.write(bufenvoi)
 app = pg.mkQApp()
 resang = 100
 
@@ -52,22 +90,24 @@ layout.addWidget(fplt, row=5, col=0, colspan=3)
 layout.resize(800,800)
 layout.setWindowTitle('Timon 12: Demo')
 layout.show()
-
 ## Create a PlotItem in the remote process that will be displayed locally
 lastUpdate = pg.ptime.time()
 data=[0]*1000
 anglemax = 45
 resang = 100
+degre = 0
+forcenow = 0
+taille = 0
 force=[0]*2*anglemax*resang
 for num in range(0, 2*anglemax*resang):
     if num < anglemax*resang:
         if num < anglemax*resang/2:
-            force[num]=(anglemax*resang-num*2)*1.0/resang
+            force[num]=(anglemax*resang-num*2)*4.0/resang
         else:
             force[num]=0
     else:
         if num > anglemax*resang + anglemax*resang/2:
-            force[num]=(anglemax*resang-num+anglemax*resang/2)*2.0/resang
+            force[num]=(anglemax*resang-num+anglemax*resang/2)*8.0/resang
         else:
             force[num]=0
 force2=[0]*100
@@ -80,49 +120,19 @@ iterfiltre = 0
 dev = Device()
 fifo = FifoBuffer()
 dev.baudrate = 230400
-count = 30
+count = 100
 i = 0
 lecture = Thread(target=lecture, args=("Thread-1", ) )
+compute = Thread(target=compute, args=("Thread-2", ) )
 lecture.start()
+time.sleep(0.5)
+compute.start()
 def update():
-    global dev, fifo, i, count, label, avgFps, lastUpdate, plt, data, force, anglemax, resang
-    if(len(fifo)>=3):
-        rec = bytearray(fifo.extract(3,True))
-    if 'rec' in locals() and rec[0] != 5:
-        #rec = bytearray(fifo.extract(2,True))
-        while(rec[0] != 5):
-            rec = bytearray(fifo.extract(1,True))
-        rec[1:2] = bytearray(fifo.extract(2,True))
-    if 'rec' in locals() and rec[0] == 5:
-     i+=1
-     angle = rec[1] + rec[2] * 256
-     if angle > 32767:
-        angle -= 65536
-     degre = angle*360/20000
-     data[:-1] = data[1:]
-     data[-1] = degre
-     #print(str(degre))
-     indexf = max(min(int((anglemax+degre)*resang),anglemax*resang*2-1),0)
-     forcenow=force[indexf]
-     forcenowint = 32767*(1+forcenow/130)
-     bufenvoi = bytearray(4)
-     bufenvoi[0] = int(forcenowint) & int('0b00111111',2)
-     bufenvoi[1] = ((int(forcenowint) >> 6) & int('0b00111111',2)) | int('0b01000000',2)
-     bufenvoi[2] = ((int(forcenowint) >> 12) & int('0b00111111',2)) | int('0b10000000',2)
-     bufenvoi[3] = int('0b11000000',2)
-     dev.write(bufenvoi)
-     if i>= count:
-        lplt.plot(data, clear=True)
-        #print(str(degre))
-        #print(str(degre) + " | " +str(rec[0]) + " : " + str(rec[1]) + " : " +str(rec[2]))
-        i=0
-        #print(str(count/(end-start)))
-        now = pg.ptime.time()
-        fps = count / (now - lastUpdate)
-        lastUpdate = now
-        label.setText("Communication %0.2f Hz Taille buffer: %0.2f" % (fps, len(fifo)))
-        fplt.plot(range(-anglemax*resang,anglemax*resang),force, clear=True)
-        fplt.plot([degre*resang],[forcenow],pen=(0,0,255),symbolBrush=(255,0,0),symbolPen='r')
+    global dev, fps, fifo, taille, i, count, label, avgFps, lastUpdate, plt, data, force, anglemax, resang, degre, forcenow
+    lplt.plot(data, clear=True)
+    label.setText("Communication %0.2f Hz Taille buffer: %0.2f" % (fps, taille/3.0))
+    fplt.plot(range(-anglemax*resang,anglemax*resang),force, clear=True)
+    fplt.plot([degre*resang],[forcenow],pen=(0,0,255),symbolBrush=(255,0,0),symbolPen='r')
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
 timer.start(0)
