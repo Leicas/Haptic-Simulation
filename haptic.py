@@ -1,4 +1,5 @@
 import sys
+import os
 import time
 from threading import Thread
 from pyqtgraph.Qt import QtGui, QtCore
@@ -218,7 +219,7 @@ if __name__ == '__main__':
             affp.terminate()
             affp.join()
             print ("Exiting...")
-            sys.exit()
+            os._exit(0)
             break
 ##    graph = Graph()
 ##    graph.newData.connect(update)
