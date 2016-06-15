@@ -1,6 +1,6 @@
 import sys
 import time
-from threading import Thread, Lock
+from threading import Thread
 from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
 import pyqtgraph.widgets.RemoteGraphicsView
@@ -8,10 +8,8 @@ from pylibftdi import Device
 import numpy as np
 import multiprocessing
 
-verrou = Lock()
 
 def lecture(fifo):
-    #global dev,fifo, taille
     dev = Device()
     dev.baudrate = 230400
     while True:
@@ -186,7 +184,6 @@ def Affichage(name, shared):
 
     
 if __name__ == '__main__':
-    import sys
     fifo = multiprocessing.Queue()
     manager = multiprocessing.Manager()
     shared = manager.dict()

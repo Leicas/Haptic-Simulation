@@ -1,0 +1,4 @@
+pylibftdi
+pyqtgraph
+numpy
+codeclimate-test-reporter
