@@ -8,7 +8,7 @@ from pylibftdi import Device
 import numpy as np
 import multiprocessing
 
-
+# Classe de lecture
 def lecture(fifo):
     dev = Device()
     dev.baudrate = 230400
@@ -218,6 +218,7 @@ if __name__ == '__main__':
             affp.terminate()
             affp.join()
             print ("Exiting...")
+            sys.exit()
             break
 ##    graph = Graph()
 ##    graph.newData.connect(update)
