@@ -1,4 +1,6 @@
 pylibftdi
+pyqt4
+pyside
 pyqtgraph
 numpy
 codeclimate-test-reporter
