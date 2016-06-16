@@ -6,22 +6,12 @@ import multiprocessing
 from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
 from pylibftdi import Device
-
+import com
 
 RESANG = 100
 COUNT = 100
 ANGLEMAX = 45
 
-def lecture(sortie):
-    """ Read the device informations """
-    dev = Device()
-    dev.baudrate = 230400
-    while True:
-        try:
-            sortie.put(dev.read(1))
-        except (KeyboardInterrupt, SystemExit):
-            print("Exiting lecture...")
-            break
 def extract(entree, size):
     """ Extract 'size' bytes from 'fifo' and return a bytearray """
     rec = bytearray([0]*size)
@@ -161,7 +151,7 @@ if __name__ == '__main__':
     SHARED['degre'] = 0
     SHARED['forcenow'] = 0
     COMPUTE = Thread(target=compute, args=("Thread-2",))
-    LECTUREP = multiprocessing.Process(target=lecture, args=(FIFO, ))
+    LECTUREP = multiprocessing.Process(target=com.lecture, args=(FIFO, ))
     LECTUREP.start()
     time.sleep(0.5)
     print(FIFO.get())
