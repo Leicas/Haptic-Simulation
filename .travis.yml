@@ -1,0 +1,17 @@
+language: python
+python:
+  - "3.2"
+  - "3.3"
+  - "3.4"
+  - "3.5"
+  - "3.5-dev" # 3.5 development branch
+  - "nightly" # currently points to 3.6-dev
+install: "pip install -r requirements.txt"
+script:
+  - python test_haptic.py
+  - coverage run test_haptic.py
+after_script:
+  - codeclimate-test-reporter
+addons:
+    code_climate:
+        repo_token: a8aadac6cbf4ca352e18997d80b6d64184443ae2cc3e8f51806602b800469b62
