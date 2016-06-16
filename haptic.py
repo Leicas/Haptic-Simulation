@@ -52,16 +52,16 @@ def compute(threadname):
                 if angle > 32767:
                     angle -= 65536
                 degre = angle*360/20000
-                data = shared['data']
+                data = SHARED['data']
                 data[:-1] = data[1:]
                 data[-1] = degre
-                shared['data'] = data
+                SHARED['data'] = data
                 indexf = max(min(int((ANGLEMAX+degre)*RESANG), ANGLEMAX*RESANG*2-1), 0)
                 forcenow = FORCE[indexf]
                 forcenow = max(min(forcenow, 130), -130)
                 forcenowint = 32767*(1+forcenow/130)
-                shared['degre'] = degre
-                shared['forcenow'] = forcenow
+                SHARED['degre'] = degre
+                SHARED['forcenow'] = forcenow
                 bufenvoi = bytearray(4)
                 bufenvoi[0] = int(forcenowint) & int('0b00111111', 2)
                 bufenvoi[1] = ((int(forcenowint) >> 6) & int('0b00111111', 2)) | int('0b01000000', 2)
@@ -70,12 +70,12 @@ def compute(threadname):
                 if i >= COUNT:
                     i = 0
                     now = pg.ptime.time()
-                    shared['fps'] = COUNT / (now - lastupdate)
-                    shared['taille'] = taille
+                    SHARED['fps'] = COUNT / (now - lastupdate)
+                    SHARED['taille'] = taille
                     lastupdate = now
                 dev.write(bufenvoi)
 
-def affichage(name, shared):
+def affichage(name, shareddic):
     """ Ploting and Display """
     pg.mkQApp()
     pg.setConfigOptions(antialias=True)  ## this will be expensive for the local plot
@@ -114,24 +114,21 @@ def affichage(name, shared):
     layout.resize(800, 800)
     layout.setWindowTitle('Timon 12: Demo')
     layout.show()
-    #data = shared['data']
-    def update(shared):
+    def update(shareddic):
         """ Every refresh of the display """
         localdata = [0]*1000
-        taille = shared['taille']
-        localdata = shared['data']
-        #for i in range(0,1000):
-        #    localdata[i] = shared['data'][i]
+        taille = shareddic['taille']
+        localdata = shareddic['data']
         lplt.plot(localdata, clear=True)
-        fps = shared['fps']
+        fps = shareddic['fps']
         label.setText("Communication %0.2f Hz Taille buffer: %0.2f" % (fps, taille/3.0))
-        force = shared['force']
-        degre = shared['degre']
-        forcenow = shared['forcenow']
+        force = shareddic['force']
+        degre = shareddic['degre']
+        forcenow = shareddic['forcenow']
         fplt.plot(range(-ANGLEMAX*RESANG, ANGLEMAX*RESANG), force, clear=True)
         fplt.plot([degre*RESANG], [forcenow], pen=(0, 0, 255), symbolBrush=(255, 0, 0), symbolPen='r')
     timer = QtCore.QTimer()
-    timer.timeout.connect(lambda: update(shared))
+    timer.timeout.connect(lambda: update(shareddic))
     timer.start(50)
     QtGui.QApplication.instance().exec_()
 
@@ -155,26 +152,26 @@ if __name__ == '__main__':
     FIFO = multiprocessing.Queue()
     FORCE = setforce()
     MANAGER = multiprocessing.Manager()
-    shared = MANAGER.dict()
-    shared['data'] = [0] * 1000
-    shared['fps'] = 0.0
-    shared['ANGLEMAX'] = ANGLEMAX
-    shared['RESANG'] = RESANG
-    shared['force'] = FORCE
-    shared['degre'] = 0
-    shared['forcenow'] = 0
+    SHARED = MANAGER.dict()
+    SHARED['data'] = [0] * 1000
+    SHARED['fps'] = 0.0
+    SHARED['ANGLEMAX'] = ANGLEMAX
+    SHARED['RESANG'] = RESANG
+    SHARED['force'] = FORCE
+    SHARED['degre'] = 0
+    SHARED['forcenow'] = 0
     COMPUTE = Thread(target=compute, args=("Thread-2",))
     LECTUREP = multiprocessing.Process(target=lecture, args=(FIFO, ))
     LECTUREP.start()
     time.sleep(0.5)
     print(FIFO.get())
     COMPUTE.start()
-    AFFP = multiprocessing.Process(target=affichage, args=("test", shared,))
+    AFFP = multiprocessing.Process(target=affichage, args=("test", SHARED,))
     AFFP.start()
     while True:
         try:
             print("encore")
-            #shared['data']=data
+            #SHARED['data']=data
             time.sleep(1)
         except (KeyboardInterrupt, SystemExit):
             print("Exiting lecture...")
