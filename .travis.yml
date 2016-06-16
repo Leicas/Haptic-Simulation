@@ -1,4 +1,5 @@
 language: python
+virtualenv: system_site_packages: true
 python:
   - "3.2"
   - "3.3"
@@ -7,7 +8,7 @@ python:
   - "3.5-dev" # 3.5 development branch
   - "nightly" # currently points to 3.6-dev
 install: 
-  - sudo apt-get install python-pyqtgraph
+  - sudo apt-get install python3-pyqt4
   - pip install -r requirements.txt
 script:
   - python test_haptic.py
