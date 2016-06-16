@@ -1,7 +1,8 @@
 """ Test module for haptic.py """
 import unittest
-import haptic
 import multiprocessing
+import haptic
+
 
 class TestFonctionUtile(unittest.TestCase):
     """ Utils functions tests """
@@ -9,10 +10,10 @@ class TestFonctionUtile(unittest.TestCase):
         """ Test extract function """
         fifo = multiprocessing.Queue()
         size = 5
-        fifoverif = bytearray(range(0,size))
-        for i in range(0,size):
+        fifoverif = bytearray(range(0, size))
+        for i in range(0, size):
             fifo.put(bytes([i]))
-        fifotest = haptic.extract(fifo,size)
-        self.assertEqual(fifotest,fifoverif)
+        fifotest = haptic.extract(fifo, size)
+        self.assertEqual(fifotest, fifoverif)
 if __name__ == '__main__':
     unittest.main()
