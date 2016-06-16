@@ -30,7 +30,6 @@ def extract(fifo, size):
 
 def compute(threadname):
     """ Compute the force """
-    global fps, label, avgFps, plt, shared, Force, ANGLEMAX, Taille
     dev = Device()
     dev.baudrate = 230400
     lastupdate = pg.ptime.time()
@@ -135,16 +134,9 @@ def affichage(name, shared):
     timer.start(50)
     QtGui.QApplication.instance().exec_()
 
-if __name__ == '__main__':
-    fifo = multiprocessing.Queue()
-    manager = multiprocessing.Manager()
-    shared = manager.dict()
-    data = manager.list()
-    data = [0] * 1000
-    degre = 0
-    forcenow = 0
-    Taille = 0
-    fps = multiprocessing.Value('d',0.0)
+def setforce():
+    """ init force field """
+    global Force
     Force=[0]*2*ANGLEMAX*RESANG
     for num in range(0, 2*ANGLEMAX*RESANG):
         if num < ANGLEMAX*RESANG:
@@ -157,13 +149,19 @@ if __name__ == '__main__':
                 Force[num]=(ANGLEMAX*RESANG-num+ANGLEMAX*RESANG/2)*8.0/RESANG
             else:
                 Force[num]=0
-    shared['data'] = data
+
+if __name__ == '__main__':
+    fifo = multiprocessing.Queue()
+    manager = multiprocessing.Manager()
+    shared = manager.dict()
+    setforce()
+    shared['data'] = [0] * 1000
     shared['fps'] = 0.0
     shared['ANGLEMAX'] = ANGLEMAX
     shared['RESANG'] = RESANG
     shared['force'] = Force
-    shared['degre'] = degre
-    shared['forcenow'] = forcenow
+    shared['degre'] = 0
+    shared['forcenow'] = 0
     compute = Thread(target=compute, args=("Thread-2", ) )
     lecturep = multiprocessing.Process(target=lecture, args=(fifo,))
     lecturep.start()
@@ -187,6 +185,3 @@ if __name__ == '__main__':
             print ("Exiting...")
             os._exit(0)
             break
-
-        
-
