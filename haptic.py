@@ -6,28 +6,14 @@ import multiprocessing
 from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
 from pylibftdi import Device
-
+import com
 
 RESANG = 100
+
 COUNT = 100
 ANGLEMAX = 45
 
-def lecture(sortie):
-    """ Read the device informations """
-    dev = Device()
-    dev.baudrate = 230400
-    while True:
-        try:
-            sortie.put(dev.read(1))
-        except (KeyboardInterrupt, SystemExit):
-            print("Exiting lecture...")
-            break
-def extract(entree, size):
-    """ Extract 'size' bytes from 'fifo' and return a bytearray """
-    rec = bytearray([0]*size)
-    for i in range(0, size):
-        rec[i] = int.from_bytes(entree.get(), 'big')
-    return rec
+
 
 def compute(threadname):
     """ Compute the force """
@@ -36,15 +22,15 @@ def compute(threadname):
     lastupdate = pg.ptime.time()
     i = 0
     while True:
-        taille = FIFO.qsize()
+        taille = HAPTICDEV.incommingsize() #FIFO.qsize()
         if taille >= 3:
-            rec = bytearray(extract(FIFO, 3))
+            rec = HAPTICDEV.readarray(3)#bytearray(extract(FIFO, 3))
             taille = taille - 3
             if rec[0] != 5:
                 while rec[0] != 5:
-                    rec = bytearray(extract(FIFO, 1))
+                    rec = HAPTICDEV.readarray(1)#bytearray(extract(FIFO, 1))
                     taille = taille - 1
-                rec[1:2] = bytearray(extract(FIFO, 2))
+                rec[1:2] = HAPTICDEV.readarray(2)#bytearray(extract(FIFO, 2))
                 taille = taille - 2
             if rec[0] == 5:
                 i += 1
@@ -59,21 +45,17 @@ def compute(threadname):
                 indexf = max(min(int((ANGLEMAX+degre)*RESANG), ANGLEMAX*RESANG*2-1), 0)
                 forcenow = FORCE[indexf]
                 forcenow = max(min(forcenow, 130), -130)
-                forcenowint = 32767*(1+forcenow/130)
+                HAPTICDEV.write(forcenow)
                 SHARED['degre'] = degre
                 SHARED['forcenow'] = forcenow
-                bufenvoi = bytearray(4)
-                bufenvoi[0] = int(forcenowint) & int('0b00111111', 2)
-                bufenvoi[1] = ((int(forcenowint) >> 6) & int('0b00111111', 2)) | int('0b01000000', 2)
-                bufenvoi[2] = ((int(forcenowint) >> 12) & int('0b00111111', 2)) | int('0b10000000', 2)
-                bufenvoi[3] = int('0b11000000', 2)
+
                 if i >= COUNT:
                     i = 0
                     now = pg.ptime.time()
                     SHARED['fps'] = COUNT / (now - lastupdate)
                     SHARED['taille'] = taille
                     lastupdate = now
-                dev.write(bufenvoi)
+                #dev.write(bufenvoi)
 
 def affichage(name, shareddic):
     """ Ploting and Display """
@@ -149,7 +131,7 @@ def setforce():
     return force
 
 if __name__ == '__main__':
-    FIFO = multiprocessing.Queue()
+    #FIFO = multiprocessing.Queue()
     FORCE = setforce()
     MANAGER = multiprocessing.Manager()
     SHARED = MANAGER.dict()
@@ -161,10 +143,10 @@ if __name__ == '__main__':
     SHARED['degre'] = 0
     SHARED['forcenow'] = 0
     COMPUTE = Thread(target=compute, args=("Thread-2",))
-    LECTUREP = multiprocessing.Process(target=lecture, args=(FIFO, ))
-    LECTUREP.start()
+    HAPTICDEV = com.HDevice()
+    HAPTICDEV.launch()
     time.sleep(0.5)
-    print(FIFO.get())
+    print(HAPTICDEV.get())
     COMPUTE.start()
     AFFP = multiprocessing.Process(target=affichage, args=("test", SHARED,))
     AFFP.start()
@@ -175,8 +157,7 @@ if __name__ == '__main__':
             time.sleep(1)
         except (KeyboardInterrupt, SystemExit):
             print("Exiting lecture...")
-            LECTUREP.terminate()
-            LECTUREP.join()
+            HAPTICDEV.quit()
             print("lecture excited...")
             AFFP.terminate()
             AFFP.join()
