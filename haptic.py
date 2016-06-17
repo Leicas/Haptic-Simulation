@@ -6,7 +6,7 @@ import multiprocessing
 from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
 from pylibftdi import Device
-import com
+import multicom.com as com
 
 RESANG = 100
 

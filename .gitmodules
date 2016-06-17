@@ -1,0 +1,3 @@
+[submodule "multicom"]
+	path = multicom
+	url = https://github.com/ISIR-MAP/multicom.git
