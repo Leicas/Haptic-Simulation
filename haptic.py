@@ -143,7 +143,7 @@ if __name__ == '__main__':
     SHARED['degre'] = 0
     SHARED['forcenow'] = 0
     COMPUTE = Thread(target=compute, args=("Thread-2",))
-    HAPTICDEV = com.HDevice()
+    HAPTICDEV = com.HDevice("ftdi")
     HAPTICDEV.launch()
     time.sleep(0.5)
     print(HAPTICDEV.get())
