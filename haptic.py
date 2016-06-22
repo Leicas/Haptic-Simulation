@@ -5,20 +5,13 @@ from threading import Thread
 import multiprocessing
 from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
-from pylibftdi import Device
 import multicom.com as com
 
 RESANG = 100
-
 COUNT = 100
 ANGLEMAX = 45
-
-
-
 def compute(threadname):
     """ Compute the force """
-    dev = Device()
-    dev.baudrate = 230400
     lastupdate = pg.ptime.time()
     i = 0
     while True:
@@ -42,8 +35,13 @@ def compute(threadname):
                 data[:-1] = data[1:]
                 data[-1] = degre
                 SHARED['data'] = data
+                vitesse = SHARED['vitesse']
+                vitesse[:-1] = vitesse[1:]
+                vitesse[-1] = diff(data[-3], data[-1])
+                SHARED['vitesse'] = vitesse
                 indexf = max(min(int((ANGLEMAX+degre)*RESANG), ANGLEMAX*RESANG*2-1), 0)
                 forcenow = FORCE[indexf]
+                forcenow = forcenow + damping(0.01, vitesse[-1])
                 forcenow = max(min(forcenow, 130), -130)
                 HAPTICDEV.write(forcenow)
                 SHARED['degre'] = degre
@@ -56,6 +54,12 @@ def compute(threadname):
                     SHARED['taille'] = taille
                     lastupdate = now
                 #dev.write(bufenvoi)
+def diff(old,new):
+    """ first order differentiation """
+    return (new-old)*1000.0
+def damping(coef, vitesse):
+    """ damp force change """
+    return -coef*vitesse
 
 def affichage(name, shareddic):
     """ Ploting and Display """
@@ -101,7 +105,9 @@ def affichage(name, shareddic):
         localdata = [0]*1000
         taille = shareddic['taille']
         localdata = shareddic['data']
+        localvitesse = shareddic['vitesse']
         lplt.plot(localdata, clear=True)
+        lplt.plot(localvitesse, pen=(0, 0, 255))
         fps = shareddic['fps']
         label.setText("Communication %0.2f Hz Taille buffer: %0.2f" % (fps, taille/3.0))
         force = shareddic['force']
@@ -136,6 +142,7 @@ if __name__ == '__main__':
     MANAGER = multiprocessing.Manager()
     SHARED = MANAGER.dict()
     SHARED['data'] = [0] * 1000
+    SHARED['vitesse'] = [0] * 1000
     SHARED['fps'] = 0.0
     SHARED['ANGLEMAX'] = ANGLEMAX
     SHARED['RESANG'] = RESANG
