@@ -5,15 +5,55 @@ from threading import Thread
 import multiprocessing
 from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
+import math
 import multicom.com as com
 
 RESANG = 100
 COUNT = 100
 ANGLEMAX = 45
+class Masse:
+    """ object masse inertielle """
+    def __init__(self, masse, raideur):
+        super(Masse, self).__init__()
+        self.masse = masse
+        self.raideur = raideur
+        self.pos = 0
+        self.vit = 0
+        self.pas = 0.002
+        self.time = time.time()
+        self.amortissement = 2*math.sqrt(self.masse*self.raideur)
+    def updatepas(self):
+        """ update pas """
+        self.pas = time.time() - self.time
+        if self.pas <= 0.0009:
+            self.pas = 0.001
+        self.time = time.time()
+    def integration(self, value):
+        return value*self.pas
+    def damping(self):
+        return self.amortissement*(self.vit)
+    def ressort(self, pos1):
+        """ spring force """
+        # if (pos1-self.pos)*(pos1-self.pos) <= 0.1:
+        #     difference = 0.0
+        # else:
+        difference = pos1-self.pos
+        return self.raideur*(difference)
+    def force(self, degre):
+        """ force exercee """
+        self.updatepas()
+        forcec = self.ressort(degre) - self.damping()
+        self.movemasse(forcec)
+        return -1.0*forcec
+    def movemasse(self, forcec):
+        """ compute move """
+        self.vit = self.vit + self.integration(forcec/self.masse)
+        self.pos = self.pos + self.integration(self.vit)
 def compute(threadname):
     """ Compute the force """
     lastupdate = pg.ptime.time()
     i = 0
+    masse = Masse(0.1, 5.0)
     while True:
         taille = HAPTICDEV.incommingsize() #FIFO.qsize()
         if taille >= 3:
@@ -41,12 +81,16 @@ def compute(threadname):
                 SHARED['vitesse'] = vitesse
                 indexf = max(min(int((ANGLEMAX+degre)*RESANG), ANGLEMAX*RESANG*2-1), 0)
                 forcenow = FORCE[indexf]
-                forcenow = forcenow + damping(0.01, vitesse[-1])
+                #forcenow = forcenow + damping(0.01, vitesse[-1])
+                forcer = masse.force(degre)
+                #forcer = -ressort(5.0, degre, masse)
+                forcenow = forcenow + forcer
+                #masse = movemasse(masse, forcer, 0.00005)
+                #print (str(masse) + "|" + str(degre))
                 forcenow = max(min(forcenow, 130), -130)
                 HAPTICDEV.write(forcenow)
                 SHARED['degre'] = degre
                 SHARED['forcenow'] = forcenow
-
                 if i >= COUNT:
                     i = 0
                     now = pg.ptime.time()
@@ -60,7 +104,6 @@ def diff(old,new):
 def damping(coef, vitesse):
     """ damp force change """
     return -coef*vitesse
-
 def affichage(name, shareddic):
     """ Ploting and Display """
     pg.mkQApp()
@@ -103,7 +146,7 @@ def affichage(name, shareddic):
     def update(shareddic):
         """ Every refresh of the display """
         localdata = [0]*1000
-        taille = shareddic['taille']
+        taille = 0#shareddic['taille']
         localdata = shareddic['data']
         localvitesse = shareddic['vitesse']
         lplt.plot(localdata, clear=True)
