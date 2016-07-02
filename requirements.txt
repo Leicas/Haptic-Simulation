@@ -2,4 +2,4 @@ pylibftdi
 pyqtgraph
 numpy
 codeclimate-test-reporter
-psutils
+psutil
