@@ -57,17 +57,12 @@ def compute(threadname):
     while True:
         taille = HAPTICDEV.incommingsize() #FIFO.qsize()
         if taille >= 3:
-            rec = HAPTICDEV.readarray(3)#bytearray(extract(FIFO, 3))
-            taille = taille - 3
-            if rec[0] != 5:
-                while rec[0] != 5:
-                    rec = HAPTICDEV.readarray(1)#bytearray(extract(FIFO, 1))
-                    taille = taille - 1
-                rec[1:2] = HAPTICDEV.readarray(2)#bytearray(extract(FIFO, 2))
-                taille = taille - 2
-            if rec[0] == 5:
+            #rec = HAPTICDEV.readarray(3)#bytearray(extract(FIFO, 3))
+            #taille = taille - 3
+            recv = HAPTICDEV.readsep(r'\|',4)
+            if 5 == 5:
                 i += 1
-                angle = rec[1] + rec[2] * 256
+                angle = float(recv[2])
                 if angle > 32767:
                     angle -= 65536
                 degre = angle*360/20000
@@ -142,7 +137,7 @@ def affichage(name, shareddic):
     def update(shareddic):
         """ Every refresh of the display """
         localdata = [0]*1000
-        taille = shareddic['taille']
+        taille = 0#shareddic['taille']
         localdata = shareddic['data']
         #localvitesse = shareddic['vitesse']
         lplt.plot(localdata, clear=True)
@@ -189,7 +184,7 @@ if __name__ == '__main__':
     SHARED['degre'] = 0
     SHARED['forcenow'] = 0
     COMPUTE = Thread(target=compute, args=("Thread-2",))
-    HAPTICDEV = com.HDevice("ftdi")
+    HAPTICDEV = com.HDevice("COM7")
     HAPTICDEV.launch()
     time.sleep(0.5)
     print(HAPTICDEV.get())
