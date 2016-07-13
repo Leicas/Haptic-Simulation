@@ -10,7 +10,7 @@ import multicom.com as com
 import psutil, os
 RESANG = 100
 COUNT = 100
-ANGLEMAX = 45
+ANGLEMAX = 60
 class Masse:
     """ object masse inertielle """
     def __init__(self, masse, raideur):
@@ -126,13 +126,13 @@ def affichage(name, shareddic):
     fplt.setTitle('Forces')
     fplt.getAxis('bottom').setScale(1.0/RESANG)
     layout = pg.LayoutWidget()
-    layout.addWidget(labelf)
-    layout.addWidget(labelp)
-    layout.addWidget(labelfr)
-    layout.addWidget(force, row=2, col=0)
-    layout.addWidget(phase, row=2, col=1)
-    layout.addWidget(freq, row=2, col=2)
-    layout.addWidget(lcheck, row=3, col=0)
+    #layout.addWidget(labelf)
+    #layout.addWidget(labelp)
+    #layout.addWidget(labelfr)
+    #layout.addWidget(force, row=2, col=0)
+    #layout.addWidget(phase, row=2, col=1)
+    #layout.addWidget(freq, row=2, col=2)
+    #layout.addWidget(lcheck, row=3, col=0)
     layout.addWidget(label, row=3, col=1)
     layout.addWidget(lplt, row=4, col=0, colspan=3)
     layout.addWidget(fplt, row=5, col=0, colspan=3)
